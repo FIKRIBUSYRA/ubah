@@ -17,7 +17,6 @@
     }
 
     input, button {
-      width: 100%;
       padding: 10px;
       margin-top: 8px;
       box-sizing: border-box;
@@ -45,12 +44,37 @@
 
     th, td {
       border: 1px solid #ccc;
-      padding: 10px;
+      padding: 8px;
       text-align: left;
+      vertical-align: middle;
     }
 
     .table-wrapper {
       overflow-x: auto;
+    }
+
+    .col-nama input {
+      width: 100%;
+      border: none;
+      background: none;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .col-mata, .col-tambah, .col-kemaskini {
+      width: 90px;
+      text-align: center;
+    }
+
+    .col-tambah input {
+      width: 60px;
+    }
+
+    .col-kemaskini button {
+      width: 35px;
+      height: 35px;
+      font-size: 20px;
+      padding: 0;
     }
 
     @media (max-width: 600px) {
@@ -79,18 +103,16 @@
 
   <!-- User List -->
   <h2>Registered Users</h2>
-
-  <!-- Search -->
   <input type="text" id="searchInput" placeholder="Cari nama..." oninput="loadUsers()">
 
   <div class="table-wrapper">
     <table id="usersTable">
       <thead>
         <tr>
-          <th>Nama</th>
-          <th>Mata Sekarang</th>
-          <th>Tambah/Tolak Mata</th>
-          <th>Kemaskini</th>
+          <th class="col-nama">Nama</th>
+          <th class="col-mata">Mata</th>
+          <th class="col-tambah">Tambah</th>
+          <th class="col-kemaskini">+</th>
         </tr>
       </thead>
       <tbody id="usersBody"></tbody>
@@ -100,6 +122,8 @@
 
 <script>
   const password = "skmorek";
+  const DB_URL = 'https://points-81a57-default-rtdb.asia-southeast1.firebasedatabase.app/';
+  const AUTH = '?auth=NAZwXIIgaG3H8AfZHOAIDrmS2o7IyjBqaLykngCa';
 
   function checkLogin() {
     const userPassword = document.getElementById("adminPass").value;
@@ -112,9 +136,6 @@
       alert("Kata laluan salah.");
     }
   }
-
-  const DB_URL = 'https://points-81a57-default-rtdb.asia-southeast1.firebasedatabase.app/';
-  const AUTH = '?auth=NAZwXIIgaG3H8AfZHOAIDrmS2o7IyjBqaLykngCa';
 
   function loadPending() {
     fetch(DB_URL + 'pending_registration.json' + AUTH)
@@ -156,11 +177,9 @@
       method: 'PUT',
       body: JSON.stringify(data)
     })
-    .then(() => {
-      return fetch(DB_URL + 'pending_registration/' + uid + '.json' + AUTH, {
-        method: 'DELETE'
-      });
-    })
+    .then(() => fetch(DB_URL + 'pending_registration/' + uid + '.json' + AUTH, {
+      method: 'DELETE'
+    }))
     .then(() => {
       alert("Pengguna berjaya didaftarkan!");
       loadPending();
@@ -185,10 +204,12 @@
           sortedUsers.forEach(user => {
             const row = document.createElement('tr');
             row.innerHTML = `
-              <td><input type="text" value="${user.name}" readonly></td>
-              <td><span id="current-points-${user.uid}">${user.points}</span></td>
-              <td><input type="number" id="adjust-points-${user.uid}" value="0"></td>
-              <td><button type="button" onclick="adjustPoints('${user.uid}', ${user.points})">Kemaskini</button></td>
+              <td class="col-nama"><input type="text" value="${user.name}" readonly></td>
+              <td class="col-mata"><span id="current-points-${user.uid}">${user.points}</span></td>
+              <td class="col-tambah"><input type="number" id="adjust-points-${user.uid}" value="0"></td>
+              <td class="col-kemaskini">
+                <button type="button" onclick="adjustPoints('${user.uid}', ${user.points})">+</button>
+              </td>
             `;
             tbody.appendChild(row);
           });
