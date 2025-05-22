@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFID Admin Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      margin: 0;
+      background-color: #f9f9f9;
+    }
+
+    h1, h2 {
+      margin-top: 20px;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #125aa2;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    @media (max-width: 600px) {
+      th, td {
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 🔐 Login Form -->
+<div id="loginForm">
+  <h2>Admin Login</h2>
+  <input type="password" id="adminPass" placeholder="Enter password">
+  <button onclick="checkLogin()">Login</button>
+</div>
+
+<!-- 🔧 Admin Dashboard -->
+<div id="dashboard" style="display:none">
+  <h1>RFID Admin Dashboard</h1>
+
+  <!-- Pending UIDs -->
+  <h2>Pending Registrations</h2>
+  <div id="pending"></div>
+
+  <!-- User List -->
+  <h2>Registered Users</h2>
+
+  <!-- Search -->
+  <input type="text" id="searchInput" placeholder="Cari nama..." oninput="loadUsers()">
+
+  <div class="table-wrapper">
+    <table id="usersTable">
+      <thead>
+        <tr>
+          <th>Nama</th>
+          <th>Mata Sekarang</th>
+          <th>Tambah/Tolak Mata</th>
+          <th>Kemaskini</th>
+        </tr>
+      </thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const password = "skmorek";
+
+  function checkLogin() {
+    const userPassword = document.getElementById("adminPass").value;
+    if (userPassword === password) {
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+      loadPending();
+      loadUsers();
+    } else {
+      alert("Kata laluan salah.");
+    }
+  }
+
+  const DB_URL = 'https://points-81a57-default-rtdb.asia-southeast1.firebasedatabase.app/';
+  const AUTH = '?auth=NAZwXIIgaG3H8AfZHOAIDrmS2o7IyjBqaLykngCa';
+
+  function loadPending() {
+    fetch(DB_URL + 'pending_registration.json' + AUTH)
+      .then(res => res.json())
+      .then(data => {
+        const div = document.getElementById('pending');
+        div.innerHTML = '';
+        if (data) {
+          Object.keys(data).forEach(uid => {
+            const form = document.createElement('div');
+            form.innerHTML = `
+              <strong>${uid}</strong><br>
+              <input type="text" id="pending-name-${uid}" placeholder="Nama" required>
+              <input type="number" id="pending-points-${uid}" placeholder="Mata" value="0">
+              <button type="button" onclick="registerUser(event, '${uid}')">Daftar</button>
+              <hr>
+            `;
+            div.appendChild(form);
+          });
+        } else {
+          div.innerHTML = "Tiada UID belum daftar.";
+        }
+      });
+  }
+
+  function registerUser(event, uid) {
+    event.preventDefault();
+    const name = document.getElementById(`pending-name-${uid}`).value.trim();
+    const points = parseInt(document.getElementById(`pending-points-${uid}`).value);
+
+    if (!name) {
+      alert("Nama tidak boleh kosong!");
+      return;
+    }
+
+    const data = { name, points };
+
+    fetch(DB_URL + 'users/' + uid + '.json' + AUTH, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+    .then(() => {
+      return fetch(DB_URL + 'pending_registration/' + uid + '.json' + AUTH, {
+        method: 'DELETE'
+      });
+    })
+    .then(() => {
+      alert("Pengguna berjaya didaftarkan!");
+      loadPending();
+      loadUsers();
+    });
+  }
+
+  function loadUsers() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+    fetch(DB_URL + 'users.json' + AUTH)
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.getElementById('usersBody');
+        tbody.innerHTML = '';
+        if (data) {
+          const sortedUsers = Object.entries(data)
+            .map(([uid, user]) => ({ uid, ...user }))
+            .filter(user => user.name.toLowerCase().includes(searchTerm))
+            .sort((a, b) => b.points - a.points);
+
+          sortedUsers.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td><input type="text" value="${user.name}" readonly></td>
+              <td><span id="current-points-${user.uid}">${user.points}</span></td>
+              <td><input type="number" id="adjust-points-${user.uid}" value="0"></td>
+              <td><button type="button" onclick="adjustPoints('${user.uid}', ${user.points})">Kemaskini</button></td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
+      });
+  }
+
+  function adjustPoints(uid, currentPoints) {
+    const adjustValue = parseInt(document.getElementById(`adjust-points-${uid}`).value);
+    const newPoints = currentPoints + adjustValue;
+
+    if (isNaN(newPoints)) {
+      alert("Input mata tidak sah.");
+      return;
+    }
+
+    fetch(DB_URL + 'users/' + uid + '.json' + AUTH, {
+      method: 'PATCH',
+      body: JSON.stringify({ points: newPoints })
+    }).then(() => {
+      alert("Mata dikemaskini!");
+      loadUsers();
+    });
+  }
+</script>
+
+</body>
+</html>
