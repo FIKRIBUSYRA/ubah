@@ -195,14 +195,13 @@
     });
   }
 
-  let allUsers = {};
+  let allUsers = [];
 
   function loadUsers() {
     fetch(DB_URL + 'users.json' + AUTH)
       .then(res => res.json())
       .then(data => {
         if (data) {
-          // Sort by points descending
           allUsers = Object.entries(data).map(([uid, user]) => ({ uid, ...user }));
           allUsers.sort((a, b) => b.points - a.points);
           renderUserTable(allUsers);
@@ -226,18 +225,21 @@
         <td data-label="+/-">
           <input type="number" id="adjust-points-${user.uid}" value="0" style="width: 60px;">
         </td>
-        <td data-label="">
-          <button class="small" onclick="adjustPoints('${user.uid}', ${user.points})">+</button>
+        <td data-label="Kemaskini">
+          <button class="small" onclick="adjustPoints('${user.uid}', ${user.points}, true)">Tambah</button>
+          <button class="small" style="margin-left:5px; background-color:#d32f2f;" onclick="adjustPoints('${user.uid}', ${user.points}, false)">Tolak</button>
         </td>
       `;
       tbody.appendChild(row);
     });
   }
 
-  function adjustPoints(uid, current) {
+  function adjustPoints(uid, current, isAdd) {
     const input = document.getElementById(`adjust-points-${uid}`);
     const adjustment = parseInt(input.value);
-    const newPoints = current + adjustment;
+    if (isNaN(adjustment)) return alert("Nilai mesti nombor");
+
+    const newPoints = isAdd ? current + adjustment : current - adjustment;
     const name = allUsers.find(u => u.uid === uid)?.name || "";
 
     const data = { name, points: newPoints };
